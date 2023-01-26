@@ -78,21 +78,27 @@ function getHandlerForMethod(method: HTTP_METHODS | 'all') {
     };
 }
 
-export const Get = getHandlerForMethod('get');
-export const All = getHandlerForMethod('all');
-export const Delete = getHandlerForMethod('delete');
-export const Head = getHandlerForMethod('head');
-export const Options = getHandlerForMethod('options');
-export const Patch = getHandlerForMethod('patch');
-export const Post = getHandlerForMethod('post');
-export const Put = getHandlerForMethod('put');
+type methodHandler = (
+  path: string,
+  $middlewares?: RequestHandler[],
+  $errorHandler?: ErrorRequestHandler,
+) => (target: any, key: string, description: PropertyDescriptor) => any;
+
+export const Get: methodHandler = getHandlerForMethod('get');
+export const All: methodHandler = getHandlerForMethod('all');
+export const Delete: methodHandler = getHandlerForMethod('delete');
+export const Head: methodHandler = getHandlerForMethod('head');
+export const Options: methodHandler = getHandlerForMethod('options');
+export const Patch: methodHandler = getHandlerForMethod('patch');
+export const Post: methodHandler = getHandlerForMethod('post');
+export const Put: methodHandler = getHandlerForMethod('put');
 export function CustomRoute(
     method: HTTP_METHODS | 'all',
     path: string,
     middlewares?: RequestHandler[],
     errorHandler?: ErrorRequestHandler
 ) {
-    return getHandlerForMethod(method)(method, middlewares, errorHandler);
+    return getHandlerForMethod(method)(path, middlewares, errorHandler);
 }
 
 export function ErrorHandlerForChild(handler: ErrorRequestHandler) {
