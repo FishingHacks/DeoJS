@@ -1,5 +1,5 @@
-import { Controller, RouterOptions, Middleware, ErrorHandler, Get, Query, pipes, Render, Logger, CustomHttpStatusCodeError, Inject } from "overnight";
-import { logger } from 'overnight/types/routing';
+import { Controller, RouterOptions, Middleware, ErrorHandler, Get, Query, pipes, Render, Logger, CustomHttpStatusCodeError, Inject } from "../../src";
+import { logger } from '../../src/types/routing';
 import { TeapotLogger, OriginalUrl, RequestChild } from "../custom.decorator";
 import { TestService } from "./test.service";
 

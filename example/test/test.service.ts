@@ -1,4 +1,4 @@
-import { Injectable } from "overnight";
+import { Injectable } from "../../src";
 
 @Injectable
 export class TestService {
