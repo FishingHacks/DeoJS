@@ -1,5 +1,5 @@
-import { chainRouteDecorators, createParamDecorator, createParamDecoratorWithData, HttpCode, MiddlewareForChild } from "../src";
-import { HTTP_CODE } from "../src/types/http";
+import { chainRouteDecorators, createParamDecorator, createParamDecoratorWithData, HttpCode, MiddlewareForChild } from "../../src";
+import { HTTP_CODE } from "../../src/types/http";
 
 export const OriginalUrl = createParamDecorator((ctx) => {
     return ctx.req.originalUrl;

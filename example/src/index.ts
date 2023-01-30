@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { Server } from '../src';
+import { Server } from '../../src';
 import { MainModule } from './main.module';
 
 class CustomServer extends Server {
