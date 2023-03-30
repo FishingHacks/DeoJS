@@ -6,6 +6,7 @@ import {
   ErrorRequestHandler,
   Router,
   NextFunction,
+  Application,
 } from 'express';
 import express from 'express';
 import {
@@ -25,10 +26,11 @@ import { getHttpErrorCode } from './errors/http';
 import { generateInjectArguments } from './serviceManager';
 import { classConstructor } from './types/generic';
 
-export function generateRouter<T extends classConstructor<any>>(
-  controller: T,
-  logger: logger,
+export function generateRouter(
+  controller: classConstructor<any>,
+  logger?: logger,
 ): [string, Router] | undefined {
+  logger ||= defaultLogger;
   if (!isController(controller)) return undefined;
   const controllerClass = new controller(
     ...generateInjectArguments(controller),
@@ -63,7 +65,13 @@ export function generateRouter<T extends classConstructor<any>>(
           if (!isNil(r.redirect)) return res.redirect(r.redirect);
 
           try {
-            const args = fillInParameters(req, res, next, logger, r.params);
+            const args = fillInParameters(
+              req,
+              res,
+              next,
+              logger as logger,
+              r.params,
+            );
             if (r.render) {
               const data = await r.function.apply(controllerClass, args);
               if (res.headersSent)
@@ -91,6 +99,110 @@ export function generateRouter<T extends classConstructor<any>>(
   }
 
   return [controllerObj.url, router];
+}
+
+export function mapController(
+  controller: classConstructor<any>,
+  router: Router,
+  logger?: logger,
+) {
+  logger ||= defaultLogger;
+  if (!isController(controller)) return undefined;
+  const controllerClass = new controller(
+    ...generateInjectArguments(controller),
+  );
+  const controllerObj = generateController(controller);
+  if (controllerObj.generateRouter)
+    return [controllerObj.url, controllerObj.generateRouter(controllerObj)];
+  if (controllerObj.middleware && controllerObj.middleware.length > 0)
+    router.use(controllerObj.url, ...controllerObj.middleware);
+  if (controllerObj.errorHandler)
+    router.use(controllerObj.url, controllerObj.errorHandler);
+  for (const r of controllerObj.routes) {
+    logger.debug(
+      'Registered route',
+      joinPath(controllerObj.url, r.url),
+      'for controller',
+      controller.name,
+    );
+    router[r.method](
+      r.url,
+      removeMaybesFromArray<ErrorRequestHandler | RequestHandler>(
+        maybe(!!controllerObj.errorHandler, controllerObj.errorHandler),
+        maybe(!!r.errorHandler, r.errorHandler),
+        ...r.middleware,
+        async function (req: Request, res: Response, next: NextFunction) {
+          if (!isNil(r.code)) res.status(r.code);
+          if (!isNil(r.headers)) {
+            for (const [k, v] of Object.entries(r.headers)) res.header(k, v);
+          }
+          if (!isNil(r.type)) res.type(r.type);
+          if (!isNil(r.redirect)) return res.redirect(r.redirect);
+
+          try {
+            const args = fillInParameters(
+              req,
+              res,
+              next,
+              logger as logger,
+              r.params,
+            );
+            if (r.render) {
+              const data = await r.function.apply(controllerClass, args);
+              if (res.headersSent)
+                return console.error(
+                  'Headers got send before render completion :c',
+                );
+              res.render(r.render || '', data);
+            } else {
+              const value = await r.function.apply(controllerClass, args);
+              if (res.headersSent) return;
+              if (typeof value === 'string') return res.send(value);
+              else res.json(value);
+            }
+          } catch (e: any) {
+            const [code, body] = getHttpErrorCode(e);
+            if (code !== -1)
+              res
+                .status(code)
+                [typeof body === 'string' ? 'send' : 'json'](body);
+            return;
+          }
+        },
+      ),
+    );
+  }
+}
+
+export const defaultLogger: logger = {
+  debug: console.debug,
+  error: console.error,
+  info: console.info,
+  warn: console.warn,
+  logValue: (severity, ...args) =>
+    console[
+      severity === 'ERR'
+        ? 'error'
+        : (severity.toLowerCase() as Lowercase<typeof severity>)
+    ](...args),
+};
+
+export function addControllers(
+  app: Application,
+  ...controllers: (classConstructor<any> | classConstructor<any>[])[]
+) {
+  controllers
+    .flat(2)
+    .filter((el) => !el)
+    .map((el) => generateRouter(el, defaultLogger))
+    .filter((el) => !el)
+    .forEach((el) =>
+      el
+        ? el[0].length < 1 || el[0] === '/'
+          ? app.use(el[1])
+          : app.use(el[0], el[1])
+        : null,
+    );
 }
 
 export class Server {
